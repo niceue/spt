@@ -1,0 +1,27 @@
+{
+    "name": "Build",
+    "description": "Front-end resources build tools",
+    "version": "0.1.0",
+    "author": "Jony Zhang <zj86@live.cn>",
+    "engine": [
+        "node >=0.10.0"
+    ],
+    "dependencies": {},
+    "devDependencies": {
+        "uglify-js": ">= 2.2.0",
+        "stylus": ">= 0.32.0"
+    },
+    "webroot": "../",
+    "build": {
+        "../scripts/dist/*.js": "../scripts/*.js",
+        "../scripts/dist/plugins.js": [
+			"plugins/slider/slider.js",  
+			"plugins/placeholder/placeholder.js",  
+			"plugins/dropdown/dropdown.js", 
+			"plugins/validator/validator.js",
+            "plugins/validator/zh_CN.js"
+        ],
+        
+        "../styles/dist/*.css": "../styles/stylus/*.styl"
+    }
+}
