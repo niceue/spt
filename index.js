@@ -4,12 +4,14 @@
  * @resources:
     https://github.com/mishoo/UglifyJS2/
     http://learnboost.github.io/stylus/
+    http://github.com/jbleuzen/node-cssmin
  */
 
 var fs = require('fs'),
     path = require('path'),
     U2 = require("uglify-js"),
     stylus = require('stylus'),
+    cssmin = require('cssmin'),
     WORKING_DIR = path.dirname(process.argv[1]),
     EXT = process.argv[2];
 
@@ -20,31 +22,35 @@ var cfg = JSON.parse(fs.readFileSync('package.json')),
     REQUIRE_RE = /"(?:\\"|[^"])*"|'(?:\\'|[^'])*'|\/\*[\S\s]*?\*\/|\/(?:\\\/|[^/\r\n])+\/(?=[^\/])|\/\/.*|\.\s*require|(?:^|[^$])\brequire\s*\(\s*(["'])(.+?)\1\s*\)/g,
     SLASH_RE = /\\\\/g;
 
-console.log('building and minifying...');
+console.log('minifying...');
 task(cfg.build);
 
 function task(obj){
     var out, val, ids = {},
         _toString = Object.prototype.toString;
     for (var k in obj) {
-        out = path.dirname(k);
+        out = ROOT + path.dirname(k);
         val = obj[k];
         if (!checkExt(k)) continue;
         if (!fs.existsSync(out)) fs.mkdirSync(out);
 
         console.log('.');
         if (typeof val === 'string') {
+			val = ROOT + val;
             if (val.indexOf('*.') !== -1) {
                 fetch(path.dirname(val), out);
             } else {
                 build(val, out);
             }
         } else if ( _toString.call(val) === '[object Array]' ) {
+			k = ROOT + k;
             fs.writeFileSync(k, '');
             ids[k] = [];
             console.log('start concat ...');
+            console.log(k)
             val.forEach(function(p){
                 var name = path.basename(k);
+				p = ROOT + p;
                 if (p.indexOf('*.') !== -1) {
                     fetch(path.dirname(p), out, name, ids[k])
                 } else {
@@ -72,19 +78,29 @@ function checkExt(p){
 }
 
 function build(p, out, name, ids){
-    var ext = path.extname(p).replace('.', '');
-    if ( ext === 'js' ) {
-        buildJS(p, out, name, ids);
-    } else if ( ext === 'styl' ) {
-        buildStyl(p, out, name);
+	var ext, noCompress = false;
+	
+	if (p.charAt(p.length-1) === "#") {
+		noCompress = true;
+		p = p.substring(0, p.length-1);
+	}
+    ext = path.extname(p).replace('.', '');
+
+    switch (ext) {
+        case "js":
+            buildJS(p, out, name, ids, noCompress); break;
+        case "styl":
+            buildStyl(p, out, name); break;
+        case "css":
+            buildCSS(p, out, name); break;
     }
 }
 
 function fetch(src, out, name, ids){
     fs.readdirSync(src).forEach(function(f){
         var p = path.join(src, f);
-        if (path.basename(f).indexOf('.bak') !== -1) {
-            console.log('##skip##: ' + p);
+        if (path.basename(f).indexOf('.bak') !== -1 || path.basename(f).indexOf('- \u526f\u672c') !== -1) {
+            console.log('skipped: ' + p);
         } else {
             build(p, out, name, ids);
         }
@@ -102,7 +118,7 @@ function parseDependencies(code) {
     return '[' + ( ret.length ? ret.join(',') : '' ) + '],';
 }
 
-function buildJS(p, out, name, ids) {
+function buildJS(p, out, name, ids, noCompress) {
     var content = fs.readFileSync(p).toString(),
         ast = U2.parse(content),
         compressor,
@@ -111,31 +127,35 @@ function buildJS(p, out, name, ids) {
         isConcat = !!name,
         name = name || path.basename(p),
         outfile = path.join(out, name).replace('.debug.', '.');
-    
-    compressor = U2.Compressor({
-        sequences: false,
-        warnings: false
-    });
+		
+    if (noCompress) {
+		code = content;
+	} else {
+		compressor = U2.Compressor({
+			sequences: false,
+			warnings: false
+		});
 
-    ast.figure_out_scope();
-    ast = ast.transform(compressor);
+		ast.figure_out_scope();
+		ast = ast.transform(compressor);
 
-    ast.figure_out_scope();
-    ast.compute_char_frequency();
-    ast.mangle_names({
-        // except: '$,require,exports'
-    });
+		ast.figure_out_scope();
+		ast.compute_char_frequency();
+		ast.mangle_names({
+			// except: '$,require,exports'
+		});
 
-    code = ast.print_to_string();    
+		code = ast.print_to_string();    
 
-    var index = code.indexOf("define(")
-    if (index !== -1 && code.substring(index+7, index+8) !== '"') {
-        id = '/' + path.relative(ROOT, isConcat ? p.replace('.debug.', '.') : outfile).replace(/\\/g, '/');
-        id = id.substring(0, id.length-3);
-        ids && ids.push(id);
-        code = code.substring(0, index) + 'define("' + id + '",' + parseDependencies(content) + code.substring(index+7);
-    }
-    code += '\n';
+		var index = code.indexOf("define(")
+		if (index !== -1 && code.substring(index+7, index+8) !== '"') {
+			id = '/' + path.relative(ROOT, isConcat ? p.replace('.debug.', '.') : outfile).replace(/\\/g, '/');
+			id = id.substring(0, id.length-3);
+			ids && ids.push(id);
+			code = code.substring(0, index) + 'define("' + id + '",' + parseDependencies(content) + code.substring(index+7);
+		}
+	}
+	code += '\n';
 
     fs[isConcat ? 'appendFileSync' : 'writeFileSync'](outfile, code);
     console.log( isConcat ? '    '+p : 'ok: '+outfile );
@@ -152,7 +172,22 @@ function buildStyl(p, out, name) {
             .set('filename', p)
             .render(function(err, code){
                 if (err) throw err;
+                code += '\n';
                 fs[isConcat ? 'appendFileSync' : 'writeFileSync'](outfile, code);
                 console.log( isConcat ? '    '+p : 'ok: '+outfile );
             });
 }
+
+function buildCSS(p, out, name) {
+    var isConcat = !!name,
+        name = name || path.basename(p),
+        content = fs.readFileSync(p).toString(),
+        outfile = path.join(out, name),
+        code;
+        
+    code = cssmin(content);
+    code += '\n';
+    fs[isConcat ? 'appendFileSync' : 'writeFileSync'](outfile, code);
+    console.log( isConcat ? '    '+p : 'ok: '+outfile );
+}
+

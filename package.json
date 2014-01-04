@@ -1,27 +1,42 @@
 {
     "name": "Build",
     "description": "Front-end resources build tools",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "author": "Jony Zhang <zj86@live.cn>",
     "engine": [
         "node >=0.10.0"
     ],
     "dependencies": {},
     "devDependencies": {
-        "uglify-js": ">= 2.2.0",
-        "stylus": ">= 0.32.0"
+        "uglify-js": ">= 2.4.8",
+        "stylus": ">= 0.41.3",
+        "cssmin": ">= 0.4.1"
     },
     "webroot": "../",
     "build": {
-        "../scripts/dist/*.js": "../scripts/*.js",
-        "../scripts/dist/plugins.js": [
-			"plugins/slider/slider.js",  
-			"plugins/placeholder/placeholder.js",  
-			"plugins/dropdown/dropdown.js", 
-			"plugins/validator/validator.js",
-            "plugins/validator/zh_CN.js"
+        "js/dist/plugins.js": [
+            "js/common/plugins/jquery.combo.js#",
+            "js/common/plugins/jquery.validate.js#",
+            "js/common/plugins/jquery.powerFloat.js#",
+
+            "js/common/plugins/jqueryui/jquery.ui.core.js",
+            "js/common/plugins/jqueryui/jquery.ui.widget.js",
+            "js/common/plugins/jqueryui/jquery.ui.datepicker.js",
+            "js/common/plugins/jqueryui/i18n/jquery.ui.datepicker-zh-CN.js"
         ],
+        "js/dist/grid.js": [
+            "js/common/plugins/grid/grid.base.js",
+            "js/common/plugins/grid/grid.custom.js",
+            "js/common/plugins/grid/grid.common.js",
+            "js/common/plugins/grid/grid.celledit.js",
+            "js/common/plugins/grid/i18n/grid.locale-cn.js",
+            "js/common/plugins/grid/jquery.fmatter.js"
+        ],
+        "js/dist/*.js": "js/src/*.js",
         
-        "../styles/dist/*.css": "../styles/stylus/*.styl"
+        "css/dist/common.css": [
+            "css/src/base.styl",
+            "css/src/buttons.styl"
+        ]
     }
 }
