@@ -1,6 +1,7 @@
 #!/usr/local/bin/node
 /* Javascript and stylus build tools
  * @author: Jony Zhang <zj86@live.cn>
+ * @homepage: https://github.com/niceue/spt
  * @resources:
     https://github.com/mishoo/UglifyJS2/
     http://learnboost.github.io/stylus/
@@ -19,44 +20,64 @@ process.chdir(WORKING_DIR);
     
 var cfg = JSON.parse(fs.readFileSync('package.json')),
     ROOT = cfg.webroot,
-    REQUIRE_RE = /"(?:\\"|[^"])*"|'(?:\\'|[^'])*'|\/\*[\S\s]*?\*\/|\/(?:\\\/|[^/\r\n])+\/(?=[^\/])|\/\/.*|\.\s*require|(?:^|[^$])\brequire\s*\(\s*(["'])(.+?)\1\s*\)/g,
+    REQUIRE_RE = /"(?:\\"|[^"])*"|'(?:\\'|[^'])*'|\/\*[\S\s]*?\*\/|\/(?:\\\/|[^\/\r\n])+\/(?=[^\/])|\/\/.*|\.\s*require|(?:^|[^$])\brequire\s*\(\s*(["'])(.+?)\1\s*\)/g,
     SLASH_RE = /\\\\/g;
 
 console.log('minifying...');
 task(cfg.build);
 
 function task(obj){
-    var out, val, ids = {},
+    var outdir, val, ids = {},
         _toString = Object.prototype.toString;
     for (var k in obj) {
-        out = ROOT + path.dirname(k);
+        outdir = ROOT + path.dirname(k);
         val = obj[k];
         if (!checkExt(k)) continue;
-        if (!fs.existsSync(out)) fs.mkdirSync(out);
+        if (!fs.existsSync(outdir)) fs.mkdirSync(outdir);
 
         console.log('.');
         if (typeof val === 'string') {
 			val = ROOT + val;
             if (val.indexOf('*.') !== -1) {
-                fetch(path.dirname(val), out);
+                fetch(path.dirname(val), outdir);
             } else {
-                build(val, out);
+                build(val, outdir, path.basename(k));
             }
         } else if ( _toString.call(val) === '[object Array]' ) {
 			k = ROOT + k;
+
+            var index = k.indexOf("#"),
+            	forceCMD = false;
+            if (index !== -1) {
+            	// 合并后，转换为CMD模块
+    			if (k.substring(index+1) === 'cmd') {
+    				forceCMD = true;
+    			}
+        		k = k.substring(0, index);
+        	}
             fs.writeFileSync(k, '');
             ids[k] = [];
+            
             console.log('start concat ...');
-            console.log(k)
+            console.log(k);
+            
+            if (forceCMD) {
+    			fs.appendFileSync(k, 'define([],function(){\n');
+    		}
+
+            var name = path.basename(k);
             val.forEach(function(p){
-                var name = path.basename(k);
+                
 				p = ROOT + p;
                 if (p.indexOf('*.') !== -1) {
-                    fetch(path.dirname(p), out, name, ids[k])
+                    fetch(path.dirname(p), outdir, name, true, ids[k])
                 } else {
-                    build(p, out, name, ids[k]);
+                    build(p, outdir, name, true, ids[k]);
                 }
             });
+            if (forceCMD) {
+    			fs.appendFileSync(k, '});');
+    		}
             ids[k].length && fs.appendFileSync(k, arr2require(ids[k]));
             console.log('ok: ' + k);
         }
@@ -77,32 +98,47 @@ function checkExt(p){
     return !EXT || (EXT === 'styl' && ext === 'css') || EXT === ext;
 }
 
-function build(p, out, name, ids){
-	var ext, noCompress = false;
+function build(p, outdir, name, concat, ids){
+	var ext,
+		noCompress = false,
+		forceCMD = false,
+		index = p.indexOf("#"),
+        opt = {
+            path: p,
+            outdir: outdir,
+            name: name,
+            concat: concat
+        };
 	
-	if (p.charAt(p.length-1) === "#") {
-		noCompress = true;
-		p = p.substring(0, p.length-1);
+	if (index !== -1) {
+		if (p.charAt(index+1) === '!') {
+			opt.noCompress = true;
+		} else {
+			if (p.substring(index+1) === 'cmd') {
+				opt.forceCMD = true;
+			}
+		}
+		opt.path = p.substring(0, index);
 	}
     ext = path.extname(p).replace('.', '');
 
     switch (ext) {
         case "js":
-            buildJS(p, out, name, ids, noCompress); break;
+            buildJS(opt, ids); break;
         case "styl":
-            buildStyl(p, out, name); break;
+            buildStyl(opt); break;
         case "css":
-            buildCSS(p, out, name); break;
+            buildCSS(opt); break;
     }
 }
 
-function fetch(src, out, name, ids){
+function fetch(src, outdir, name, concat, ids){
     fs.readdirSync(src).forEach(function(f){
         var p = path.join(src, f);
         if (path.basename(f).indexOf('.bak') !== -1 || path.basename(f).indexOf('- \u526f\u672c') !== -1) {
             console.log('skipped: ' + p);
         } else {
-            build(p, out, name, ids);
+            build(p, outdir, name, concat, ids);
         }
     });
 }
@@ -118,17 +154,17 @@ function parseDependencies(code) {
     return '[' + ( ret.length ? ret.join(',') : '' ) + '],';
 }
 
-function buildJS(p, out, name, ids, noCompress) {
-    var content = fs.readFileSync(p).toString(),
+function buildJS(opt, ids) {
+    var content = fs.readFileSync(opt.path).toString(),
         ast = U2.parse(content),
         compressor,
         code = '',
         id,
-        isConcat = !!name,
-        name = name || path.basename(p),
-        outfile = path.join(out, name).replace('.debug.', '.');
+        isConcat = !!opt.concat,
+        name = opt.name || path.basename(opt.path),
+        outfile = path.join(opt.outdir, name).replace('.debug.', '.');
 		
-    if (noCompress) {
+    if (opt.noCompress) {
 		code = content;
 	} else {
 		compressor = U2.Compressor({
@@ -147,9 +183,9 @@ function buildJS(p, out, name, ids, noCompress) {
 
 		code = ast.print_to_string();    
 
-		var index = code.indexOf("define(")
+		var index = code.indexOf("define(");
 		if (index !== -1 && code.substring(index+7, index+8) !== '"') {
-			id = '/' + path.relative(ROOT, isConcat ? p.replace('.debug.', '.') : outfile).replace(/\\/g, '/');
+			id = '/' + path.relative(ROOT, isConcat ? opt.path.replace('.debug.', '.') : outfile).replace(/\\/g, '/');
 			id = id.substring(0, id.length-3);
 			ids && ids.push(id);
 			code = code.substring(0, index) + 'define("' + id + '",' + parseDependencies(content) + code.substring(index+7);
@@ -158,36 +194,40 @@ function buildJS(p, out, name, ids, noCompress) {
 	code += '\n';
 
     fs[isConcat ? 'appendFileSync' : 'writeFileSync'](outfile, code);
-    console.log( isConcat ? '    '+p : 'ok: '+outfile );
+    console.log( isConcat ? '    '+ opt.path : 'ok: '+outfile );
 }
 
-function buildStyl(p, out, name) {
-    var isConcat = !!name,
-        name = name || (path.basename(p, '.styl') + '.css'),
-        content = fs.readFileSync(p).toString(),
-        outfile = path.join(out, name);
+function buildStyl(opt) {
+    var isConcat = !!opt.concat,
+        name = opt.name || (path.basename(opt.path, '.styl') + '.css'),
+        content = fs.readFileSync(opt.path).toString(),
+        outfile = path.join(opt.outdir, name);
 
         stylus( content )
             .set('compress', true)
-            .set('filename', p)
+            .set('filename', opt.path)
             .render(function(err, code){
                 if (err) throw err;
                 code += '\n';
                 fs[isConcat ? 'appendFileSync' : 'writeFileSync'](outfile, code);
-                console.log( isConcat ? '    '+p : 'ok: '+outfile );
+                console.log( isConcat ? '    '+ opt.path : 'ok: '+outfile );
             });
 }
 
-function buildCSS(p, out, name) {
-    var isConcat = !!name,
-        name = name || path.basename(p),
-        content = fs.readFileSync(p).toString(),
-        outfile = path.join(out, name),
+function buildCSS(opt) {
+    var isConcat = !!opt.concat,
+        name = opt.name || path.basename(opt.path),
+        content = fs.readFileSync(opt.path).toString(),
+        outfile = path.join(opt.outdir, name),
         code;
-        
-    code = cssmin(content);
+
+    code = cssmin(content).replace(/url\(([^\)]*)/gmi, function(m, m1){
+        m1 = m1.replace(/'|"|\s/g, '');
+        m1 = path.relative(opt.outdir, path.join( path.dirname(opt.path) , m1) ).replace(/\\/g, '/');
+        return "url("+ m1;
+    });
     code += '\n';
     fs[isConcat ? 'appendFileSync' : 'writeFileSync'](outfile, code);
-    console.log( isConcat ? '    '+p : 'ok: '+outfile );
+    console.log( isConcat ? '    '+ opt.path : 'ok: '+outfile );
 }
 
