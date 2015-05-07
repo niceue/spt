@@ -14,7 +14,7 @@
 
 ## 配置说明
 “package.json”中使用了两个节点（`webroot` 和 `build`）    
-`webroot` 定义网站的根目录（默认是“../”）；  
+`base` 指定模块的相对目录（默认是“../”）；  
 `build` 定义打包规则（对于每一项规则：键为目标文件，值为源文件）；
 
 如果源文件为某个目录中所有的js文件，那么可以使用*.js，或者*.styl。  
@@ -22,7 +22,7 @@
 
 例子：  
 ```js
-"webroot": "../",
+"base": "../",
 "build": {
     "../scripts/dist/*.js": "../scripts/*.js",
     "../scripts/dist/plugins.js": [
