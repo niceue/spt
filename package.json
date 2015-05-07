@@ -12,7 +12,7 @@
         "stylus": ">= 0.41.3",
         "cssmin": ">= 0.4.1"
     },
-    "webroot": "../",
+    "base": "../",
     "build": {
         "js/dist/plugins.js": [
             "js/common/plugins/jquery.combo.js#",
