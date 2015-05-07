@@ -19,12 +19,14 @@ var fs = require('fs'),
 process.chdir(WORKING_DIR);
     
 var cfg = JSON.parse(fs.readFileSync('package.json')),
-    ROOT = cfg.webroot,
+    ROOT = cfg.base,
     REQUIRE_RE = /"(?:\\"|[^"])*"|'(?:\\'|[^'])*'|\/\*[\S\s]*?\*\/|\/(?:\\\/|[^\/\r\n])+\/(?=[^\/])|\/\/.*|\.\s*require|(?:^|[^$])\brequire\s*\(\s*(["'])(.+?)\1\s*\)/g,
     SLASH_RE = /\\\\/g;
 
-console.log('minifying...');
+console.log("minifying...\n");
 task(cfg.build);
+console.log("completed!\n");
+
 
 function task(obj){
     var outdir, val, ids = {},
@@ -37,24 +39,24 @@ function task(obj){
 
         console.log('.');
         if (typeof val === 'string') {
-			val = ROOT + val;
+            val = ROOT + val;
             if (val.indexOf('*.') !== -1) {
                 fetch(path.dirname(val), outdir);
             } else {
                 build(val, outdir, path.basename(k));
             }
         } else if ( _toString.call(val) === '[object Array]' ) {
-			k = ROOT + k;
+            k = ROOT + k;
 
             var index = k.indexOf("#"),
-            	forceCMD = false;
+                forceCMD = false;
             if (index !== -1) {
-            	// 合并后，转换为CMD模块
-    			if (k.substring(index+1) === 'cmd') {
-    				forceCMD = true;
-    			}
-        		k = k.substring(0, index);
-        	}
+                // 合并后，转换为CMD模块
+                if (k.substring(index+1) === 'cmd') {
+                    forceCMD = true;
+                }
+                k = k.substring(0, index);
+            }
             fs.writeFileSync(k, '');
             ids[k] = [];
             
@@ -62,13 +64,13 @@ function task(obj){
             console.log(k);
             
             if (forceCMD) {
-    			fs.appendFileSync(k, 'define([],function(){\n');
-    		}
+                fs.appendFileSync(k, 'define([],function(){\n');
+            }
 
             var name = path.basename(k);
             val.forEach(function(p){
                 
-				p = ROOT + p;
+                p = ROOT + p;
                 if (p.indexOf('*.') !== -1) {
                     fetch(path.dirname(p), outdir, name, true, ids[k])
                 } else {
@@ -76,13 +78,12 @@ function task(obj){
                 }
             });
             if (forceCMD) {
-    			fs.appendFileSync(k, '});');
-    		}
+                fs.appendFileSync(k, '});');
+            }
             ids[k].length && fs.appendFileSync(k, arr2require(ids[k]));
             console.log('ok: ' + k);
         }
     }
-    console.log('completed!');
 }
 
 function arr2require(arr){
@@ -99,27 +100,27 @@ function checkExt(p){
 }
 
 function build(p, outdir, name, concat, ids){
-	var ext,
-		noCompress = false,
-		forceCMD = false,
-		index = p.indexOf("#"),
+    var ext,
+        noCompress = false,
+        forceCMD = false,
+        index = p.indexOf("#"),
         opt = {
             path: p,
             outdir: outdir,
             name: name,
             concat: concat
         };
-	
-	if (index !== -1) {
-		if (p.charAt(index+1) === '!') {
-			opt.noCompress = true;
-		} else {
-			if (p.substring(index+1) === 'cmd') {
-				opt.forceCMD = true;
-			}
-		}
-		opt.path = p.substring(0, index);
-	}
+    
+    if (index !== -1) {
+        if (p.charAt(index+1) === '!') {
+            opt.noCompress = true;
+        } else {
+            if (p.substring(index+1) === 'cmd') {
+                opt.forceCMD = true;
+            }
+        }
+        opt.path = p.substring(0, index);
+    }
     ext = path.extname(p).replace('.', '');
 
     switch (ext) {
@@ -163,35 +164,35 @@ function buildJS(opt, ids) {
         isConcat = !!opt.concat,
         name = opt.name || path.basename(opt.path),
         outfile = path.join(opt.outdir, name).replace('.debug.', '.');
-		
+        
     if (opt.noCompress) {
-		code = content;
-	} else {
-		compressor = U2.Compressor({
-			sequences: false,
-			warnings: false
-		});
+        code = content;
+    } else {
+        compressor = U2.Compressor({
+            sequences: false,
+            warnings: false
+        });
 
-		ast.figure_out_scope();
-		ast = ast.transform(compressor);
+        ast.figure_out_scope();
+        ast = ast.transform(compressor);
 
-		ast.figure_out_scope();
-		ast.compute_char_frequency();
-		ast.mangle_names({
-			// except: '$,require,exports'
-		});
+        ast.figure_out_scope();
+        ast.compute_char_frequency();
+        ast.mangle_names({
+            // except: '$,require,exports'
+        });
 
-		code = ast.print_to_string();    
+        code = ast.print_to_string();    
 
-		var index = code.indexOf("define(");
-		if (index !== -1 && code.substring(index+7, index+8) !== '"') {
-			id = '/' + path.relative(ROOT, isConcat ? opt.path.replace('.debug.', '.') : outfile).replace(/\\/g, '/');
-			id = id.substring(0, id.length-3);
-			ids && ids.push(id);
-			code = code.substring(0, index) + 'define("' + id + '",' + parseDependencies(content) + code.substring(index+7);
-		}
-	}
-	code += '\n';
+        var index = code.indexOf("define(");
+        if (index !== -1 && code.substring(index+7, index+8) !== '"') {
+            id = path.relative(ROOT, isConcat ? opt.path.replace('.debug.', '.') : outfile).replace(/\\/g, '/');
+            id = id.substring(0, id.length-3);
+            ids && ids.push(id);
+            code = code.substring(0, index) + 'define("' + id + '",' + parseDependencies(content) + code.substring(index+7);
+        }
+    }
+    code += '\n';
 
     fs[isConcat ? 'appendFileSync' : 'writeFileSync'](outfile, code);
     console.log( isConcat ? '    '+ opt.path : 'ok: '+outfile );
@@ -230,4 +231,3 @@ function buildCSS(opt) {
     fs[isConcat ? 'appendFileSync' : 'writeFileSync'](outfile, code);
     console.log( isConcat ? '    '+ opt.path : 'ok: '+outfile );
 }
-
