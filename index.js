@@ -57,15 +57,15 @@ function task(obj) {
         _toString = Object.prototype.toString;
 
     for (var k in obj) {
+        val = obj[k];
+        //if (!checkExt(k)) continue;
+
         if (k.substr(-1) === '/') {
             outdir = path.join(ROOT, k);
         } else {
             outdir = path.join(ROOT, path.dirname(k));
             outname = path.basename(k);
         }
-        
-        val = obj[k];
-        //if (!checkExt(k)) continue;
 
         stats = statSync(outdir);
         if (!stats) fs.mkdirSync(outdir);
