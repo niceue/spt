@@ -8,16 +8,16 @@
     ],
     "dependencies": {},
     "devDependencies": {
-        "uglify-js": ">= 2.4.8",
-        "stylus": ">= 0.41.3",
-        "cssmin": ">= 0.4.1"
+        "uglify-js": ">= 2.4.23",
+        "stylus": ">= 0.51.0",
+        "cssmin": ">= 0.4.3"
     },
     "base": "../",
     "build": {
         "js/dist/plugins.js": [
-            "js/common/plugins/jquery.combo.js#",
-            "js/common/plugins/jquery.validate.js#",
-            "js/common/plugins/jquery.powerFloat.js#",
+            "js/common/plugins/jquery.combo.js#!",
+            "js/common/plugins/jquery.validate.js#!",
+            "js/common/plugins/jquery.powerFloat.js#!",
 
             "js/common/plugins/jqueryui/jquery.ui.core.js",
             "js/common/plugins/jqueryui/jquery.ui.widget.js",
