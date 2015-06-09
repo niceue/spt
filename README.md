@@ -26,6 +26,7 @@
 "base": "../",
 "build": {
     "../scripts/dist/*.js": "../scripts/*.js",
+
     "../scripts/dist/plugins.js": [
         "plugins/slider/slider.js",  
         "plugins/placeholder/placeholder.js",  
