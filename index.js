@@ -103,9 +103,9 @@ function build(p, outdir, name, concat, ids){
     var ext,
         noCompress = false,
         forceCMD = false,
-        index = p.indexOf("#"),
+        index = p.lastIndexOf("#"),
         opt = {
-            path: p,
+            path: p.split("#")[0],
             outdir: outdir,
             name: name,
             concat: concat
@@ -119,9 +119,8 @@ function build(p, outdir, name, concat, ids){
                 opt.forceCMD = true;
             }
         }
-        opt.path = p.substring(0, index);
     }
-    ext = path.extname(p).replace('.', '');
+    ext = path.extname(opt.path).replace('.', '');
 
     switch (ext) {
         case "js":
@@ -222,11 +221,16 @@ function buildCSS(opt) {
         outfile = path.join(opt.outdir, name),
         code;
 
-    code = cssmin(content).replace(/url\(([^\)]*)/gmi, function(m, m1){
-        m1 = m1.replace(/'|"|\s/g, '');
-        m1 = path.relative(opt.outdir, path.join( path.dirname(opt.path) , m1) ).replace(/\\/g, '/');
-        return "url("+ m1;
-    });
+    if (opt.noCompress) {
+        code = content;
+    } else {
+        code = cssmin(content).replace(/url\(([^\)]*)/gmi, function(m, m1){
+            m1 = m1.replace(/'|"|\s/g, '');
+            m1 = path.relative(opt.outdir, path.join( path.dirname(opt.path) , m1) ).replace(/\\/g, '/');
+            return "url("+ m1;
+        });
+    }
+    
     code += '\n';
     fs[isConcat ? 'appendFileSync' : 'writeFileSync'](outfile, code);
     console.log( isConcat ? '    '+ opt.path : 'ok: '+outfile );
