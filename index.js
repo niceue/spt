@@ -23,70 +23,125 @@ var cfg = JSON.parse(fs.readFileSync('package.json')),
     REQUIRE_RE = /"(?:\\"|[^"])*"|'(?:\\'|[^'])*'|\/\*[\S\s]*?\*\/|\/(?:\\\/|[^\/\r\n])+\/(?=[^\/])|\/\/.*|\.\s*require|(?:^|[^$])\brequire\s*\(\s*(["'])(.+?)\1\s*\)/g,
     SLASH_RE = /\\\\/g;
 
+var BUF_LENGTH = 64 * 1024;
+var _buff = new Buffer(BUF_LENGTH);
+
+function copyFileSync(srcFile, destFile, clobber) {
+    if (fs.existsSync(destFile) && !clobber) {
+        throw Error('EEXIST')
+    }
+
+    var fdr = fs.openSync(srcFile, 'r');
+    var stat = fs.fstatSync(fdr);
+    var fdw = fs.openSync(destFile, 'w', stat.mode);
+    var bytesRead = 1;
+    var pos = 0;
+
+    while (bytesRead > 0) {
+        bytesRead = fs.readSync(fdr, _buff, 0, BUF_LENGTH, pos);
+        fs.writeSync(fdw, _buff, 0, bytesRead);
+        pos += bytesRead;
+    }
+
+    fs.closeSync(fdr);
+    fs.closeSync(fdw);
+}
+
 console.log("minifying...\n");
 task(cfg.build);
 console.log("completed!\n");
 
 
-function task(obj){
-    var outdir, val, ids = {},
+function task(obj) {
+    var outdir, outname, val, ids = {}, stats,
         _toString = Object.prototype.toString;
+
     for (var k in obj) {
-        outdir = ROOT + path.dirname(k);
+        if (k.substr(-1) === '/') {
+            outdir = path.join(ROOT, k);
+        } else {
+            outdir = path.join(ROOT, path.dirname(k));
+            outname = path.basename(k);
+        }
+        
         val = obj[k];
-        if (!checkExt(k)) continue;
-        if (!fs.existsSync(outdir)) fs.mkdirSync(outdir);
+        //if (!checkExt(k)) continue;
+
+        stats = statSync(outdir);
+        if (!stats) fs.mkdirSync(outdir);
 
         console.log('.');
         if (typeof val === 'string') {
-            val = ROOT + val;
-            if (val.indexOf('*.') !== -1) {
-                fetch(path.dirname(val), outdir);
-            } else {
-                build(val, outdir, path.basename(k));
-            }
-        } else if ( _toString.call(val) === '[object Array]' ) {
-            k = ROOT + k;
-
-            var index = k.indexOf("#"),
-                forceCMD = false;
-            if (index !== -1) {
-                // 合并后，转换为CMD模块
-                if (k.substring(index+1) === 'cmd') {
-                    forceCMD = true;
-                }
-                k = k.substring(0, index);
-            }
-            fs.writeFileSync(k, '');
-            ids[k] = [];
-            
+            fetch(val, outdir, outname);
+        }
+        else if ( _toString.call(val) === '[object Array]' ) {
             console.log('start concat ...');
             console.log(k);
-            
-            if (forceCMD) {
-                fs.appendFileSync(k, 'define([],function(){\n');
-            }
 
-            var name = path.basename(k);
+            k = ROOT + k;
+            fs.writeFileSync(k, '');
+            ids[k] = [];
+
             val.forEach(function(p){
-                
-                p = ROOT + p;
-                if (p.indexOf('*.') !== -1) {
-                    fetch(path.dirname(p), outdir, name, true, ids[k])
-                } else {
-                    build(p, outdir, name, true, ids[k]);
-                }
+                fetch(p, outdir, outname, true, ids[k]);
             });
-            if (forceCMD) {
-                fs.appendFileSync(k, '});');
-            }
+
             ids[k].length && fs.appendFileSync(k, arr2require(ids[k]));
             console.log('ok: ' + k);
         }
     }
 }
 
-function arr2require(arr){
+function fetch(srcpath, outdir, outname, concat, ids) {
+    var arr = srcpath.split('#'),
+        src = path.resolve(ROOT, arr[0]),
+        cmd = arr[1],
+        stats;
+
+    if (src.indexOf('*.') !== -1) {
+        src = path.dirname(src);
+    }
+
+    stats = statSync(src);
+    if (!stats) return;
+
+    if (stats.isFile()) {
+        build({
+            path: src,
+            outdir: outdir,
+            name: outname,
+            concat: concat,
+            cmd: cmd
+        }, ids);
+    }
+    else if (stats.isDirectory()) {
+        fs.readdirSync( src ).forEach(function(f) {
+            var p = path.join(src, f);
+            if (path.basename(f).indexOf('.bak') !== -1 || path.basename(f).indexOf('- \u526f\u672c') !== -1) {
+                console.log('skipped: ' + p);
+            }
+            else {
+                build({
+                    path: p,
+                    outdir: outdir,
+                    name: outname,
+                    concat: concat,
+                    cmd: cmd
+                }, ids);
+            }
+        });
+    }
+}
+
+function statSync(path) {
+    try {
+        return fs.statSync(path);
+    } catch (err) {
+        return err && err.code === "ENOENT" ? false : true;
+    }
+}
+
+function arr2require(arr) {
     var code = '';
     arr.forEach(function(id){
         code += 'require("'+ id +'");';
@@ -94,33 +149,22 @@ function arr2require(arr){
     return 'define(function(require){' + code + '});';
 }
 
-function checkExt(p){
+function checkExt(p) {
     var ext = path.extname(p).replace('.', '');
     return !EXT || (EXT === 'styl' && ext === 'css') || EXT === ext;
 }
 
-function build(p, outdir, name, concat, ids){
-    var ext,
-        noCompress = false,
-        forceCMD = false,
-        index = p.lastIndexOf("#"),
-        opt = {
-            path: p.split("#")[0],
-            outdir: outdir,
-            name: name,
-            concat: concat
-        };
+function build(opt, ids) {
+    var ext = path.extname(opt.path).replace('.', '');
     
-    if (index !== -1) {
-        if (p.charAt(index+1) === '!') {
+    if (opt.cmd) {
+        if (opt.cmd === '!') {
             opt.noCompress = true;
-        } else {
-            if (p.substring(index+1) === 'cmd') {
-                opt.forceCMD = true;
-            }
         }
     }
-    ext = path.extname(opt.path).replace('.', '');
+    if (!opt.name) {
+        opt.name = path.basename(opt.path);
+    }
 
     switch (ext) {
         case "js":
@@ -129,18 +173,9 @@ function build(p, outdir, name, concat, ids){
             buildStyl(opt); break;
         case "css":
             buildCSS(opt); break;
+        default:
+            buildOther(opt);
     }
-}
-
-function fetch(src, outdir, name, concat, ids){
-    fs.readdirSync(src).forEach(function(f){
-        var p = path.join(src, f);
-        if (path.basename(f).indexOf('.bak') !== -1 || path.basename(f).indexOf('- \u526f\u672c') !== -1) {
-            console.log('skipped: ' + p);
-        } else {
-            build(p, outdir, name, concat, ids);
-        }
-    });
 }
 
 function parseDependencies(code) {
@@ -234,4 +269,8 @@ function buildCSS(opt) {
     code += '\n';
     fs[isConcat ? 'appendFileSync' : 'writeFileSync'](outfile, code);
     console.log( isConcat ? '    '+ opt.path : 'ok: '+outfile );
+}
+
+function buildOther(opt) {
+    copyFileSync( opt.path, path.join(opt.outdir, opt.outname) );
 }
