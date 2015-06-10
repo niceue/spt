@@ -8,35 +8,18 @@
     ],
     "dependencies": {},
     "devDependencies": {
-        "uglify-js": ">= 2.4.23",
-        "stylus": ">= 0.51.0",
-        "cssmin": ">= 0.4.3"
+        "uglify-js": ">= 2.4.8",
+        "stylus": ">= 0.41.3",
+		"cssmin": ">= 0.4.1"
     },
-    "base": "../",
+    "base": "../js/",
     "build": {
-        "js/dist/plugins.js": [
-            "js/common/plugins/jquery.combo.js#!",
-            "js/common/plugins/jquery.validate.js#!",
-            "js/common/plugins/jquery.powerFloat.js#!",
+        "dist/*.js": "src/*.js",
+        "dist/co/*.js": "src/co/*.js",
+        "dist/p/*.js": "src/p/*.js",
+        "dist/mloan/*.js": "src/mloan/*.js",
+        "../css/base.min.css": "../css/base.css",
 
-            "js/common/plugins/jqueryui/jquery.ui.core.js",
-            "js/common/plugins/jqueryui/jquery.ui.widget.js",
-            "js/common/plugins/jqueryui/jquery.ui.datepicker.js",
-            "js/common/plugins/jqueryui/i18n/jquery.ui.datepicker-zh-CN.js"
-        ],
-        "js/dist/grid.js": [
-            "js/common/plugins/grid/grid.base.js",
-            "js/common/plugins/grid/grid.custom.js",
-            "js/common/plugins/grid/grid.common.js",
-            "js/common/plugins/grid/grid.celledit.js",
-            "js/common/plugins/grid/i18n/grid.locale-cn.js",
-            "js/common/plugins/grid/jquery.fmatter.js"
-        ],
-        "js/dist/*.js": "js/src/*.js",
-        
-        "css/dist/common.css": [
-            "css/src/base.styl",
-            "css/src/buttons.styl"
-        ]
+        "../css/pages.min.css": "../css/pages.css"
     }
 }
