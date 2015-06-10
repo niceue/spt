@@ -92,9 +92,9 @@ function statSync(path) {
     }
 }
 
-console.log("minifying...\n");
+console.log("building...");
 task(cfg.build);
-console.log("completed!\n");
+console.log("\ncompleted!\n");
 
 
 function task(obj) {
@@ -103,7 +103,9 @@ function task(obj) {
 
     for (var k in obj) {
         val = obj[k];
+        outname = null;
         //if (!checkExt(k)) continue;
+        console.log('\n[task] "' + k + '": "' + val + '"');
 
         if (k.substr(-1) === '/') {
             outdir = path.join(ROOT, k);
@@ -115,14 +117,16 @@ function task(obj) {
         }
 
         stats = statSync(outdir);
-        if (!stats) mkpathSync(outdir);
+        if (!stats) {
+            mkpathSync(outdir);
+            console.log('mkdir: ' + outdir)
+        }
 
-        console.log('.');
         if (typeof val === 'string') {
             fetch(val, outdir, outname);
         }
         else if ( _toString.call(val) === '[object Array]' ) {
-            console.log('start concat ...');
+            console.log('start concat >>>');
             console.log(k);
 
             k = ROOT + k;
@@ -134,7 +138,8 @@ function task(obj) {
             });
 
             ids[k].length && fs.appendFileSync(k, arr2require(ids[k]));
-            console.log('ok: ' + k);
+            console.log( 'ok: ' + k );
+            console.log('end concat <<<');
         }
     }
 }
@@ -179,7 +184,7 @@ function fetch(srcpath, outdir, outname, concat, ids) {
                     name: outname,
                     concat: concat,
                     cmd: cmd,
-                    ext: ext
+                    ext: path.extname(f)
                 }, ids);
             }
         });
@@ -200,7 +205,7 @@ function checkExt(p) {
 }
 
 function build(opt, ids) {
-    var ext = opt.ext || path.extname(opt.path);
+    opt.ext = opt.ext || path.extname(opt.path);
     
     if (opt.cmd) {
         if (opt.cmd === '!') {
@@ -211,7 +216,7 @@ function build(opt, ids) {
         opt.name = path.basename(opt.path);
     }
 
-    switch (ext) {
+    switch (opt.ext) {
         case ".js":
             buildJS(opt, ids); break;
         case ".styl":
@@ -274,7 +279,7 @@ function buildJS(opt, ids) {
     code += '\n';
 
     fs[isConcat ? 'appendFileSync' : 'writeFileSync'](outfile, code);
-    console.log( isConcat ? '    '+ opt.path : 'ok: '+outfile );
+    console.log( isConcat ? '    '+ opt.path : ( opt.noCompress ? 'copy: ' : 'min: ') + outfile );
 }
 
 function buildStyl(opt) {
@@ -294,7 +299,7 @@ function buildStyl(opt) {
                 if (err) throw err;
                 code += '\n';
                 fs[isConcat ? 'appendFileSync' : 'writeFileSync'](outfile, code);
-                console.log( isConcat ? '    '+ opt.path : 'ok: '+outfile );
+                console.log( isConcat ? '    '+ opt.path : 'compile: ' + outfile );
             });
     }
 }
@@ -318,7 +323,7 @@ function buildCSS(opt) {
     
     code += '\n';
     fs[isConcat ? 'appendFileSync' : 'writeFileSync'](outfile, code);
-    console.log( isConcat ? '    '+ opt.path : 'ok: '+outfile );
+    console.log( isConcat ? '    '+ opt.path : ( opt.noCompress ? 'copy: ' : 'min: ') + outfile );
 }
 
 function buildOther(opt) {
@@ -330,11 +335,13 @@ function buildOther(opt) {
     if (stats.isFile()) {
         var outfile = path.join(opt.outdir, opt.outname || path.basename(opt.path));
         streamCopyFile(opt.path,  outfile, function() {
-            console.log( 'copy: =>'+ outfile );
+            console.log( 'copy: '+ outfile );
         });
     }
     else if (stats.isDirectory()) {
-        console.log(opt)
-        fetch(opt.path, opt.outdir);
+        var outdir = opt.outdir + opt.path.split(path.sep).pop();
+        mkpathSync(outdir);
+        console.log( 'mkdir: ' + outdir );
+        fetch(opt.path + (opt.cmd ? '#' + opt.cmd : ''), outdir);
     }
 }
