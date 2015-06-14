@@ -23,46 +23,6 @@ var cfg = JSON.parse(fs.readFileSync('package.json')),
     REQUIRE_RE = /"(?:\\"|[^"])*"|'(?:\\'|[^'])*'|\/\*[\S\s]*?\*\/|\/(?:\\\/|[^\/\r\n])+\/(?=[^\/])|\/\/.*|\.\s*require|(?:^|[^$])\brequire\s*\(\s*(["'])(.+?)\1\s*\)/g,
     SLASH_RE = /\\\\/g;
 
-function streamCopyFile(source, target, callback) {
-    'use strict';
-    var fs = require('fs');
-    var stat = fs.statSync(source);
-    if (!(callback instanceof Function)) {
-        callback = function default_streamCopyFileCallback () {
-            return null;
-        };
-    }
-    var finished = false;
-    function done(err) {
-        if (!finished) {
-            callback(err);
-        }
-        finished = true;
-    }
-    var readStream = fs.createReadStream(source, {
-            flags: 'r',
-            encoding: 'binary',
-            fd: null,
-            mode: stat.mode,
-            autoClose: true
-        });
-    readStream.on('error', function (err) {
-        done(err);
-    });
-    var writeStream = fs.createWriteStream(target, {
-            flags: 'w',
-            encoding: 'binary',
-            mode: stat.mode
-        });
-    writeStream.on('error', function (err) {
-        done(err);
-    });
-    writeStream.on('close', function () {
-        done();
-    });
-    readStream.pipe(writeStream);
-}
-
 function mkpathSync(dirpath, mode) {
     dirpath = path.resolve(dirpath);
 
@@ -165,15 +125,22 @@ function fetch(srcpath, outdir, outname, concat, ids) {
             outdir: outdir,
             name: outname,
             concat: concat,
-            cmd: cmd
+            cmd: cmd,
+            stats: stats,
+            isFile: true
         }, ids);
     }
     else if (stats.isDirectory()) {
         fs.readdirSync( src ).forEach(function(f) {
-            if (ext && ext !== path.extname(f)) {
+            var p = path.join(src, '/', f);
+            var stats = statSync(p);
+            if (!stats) return;
+            var isFile = stats.isFile();
+
+            if (ext && isFile && ext !== path.extname(f)) {
                 return;
             }
-            var p = path.join(src, f);
+            
             if (path.basename(f).indexOf('.bak') !== -1 || path.basename(f).indexOf('- \u526f\u672c') !== -1) {
                 console.log('skipped: ' + p);
             }
@@ -184,7 +151,9 @@ function fetch(srcpath, outdir, outname, concat, ids) {
                     name: outname,
                     concat: concat,
                     cmd: cmd,
-                    ext: path.extname(f)
+                    ext: path.extname(f),
+                    stats: stats,
+                    isFile: isFile
                 }, ids);
             }
         });
@@ -206,7 +175,6 @@ function checkExt(p) {
 
 function build(opt, ids) {
     opt.ext = opt.ext || path.extname(opt.path);
-    
     if (opt.cmd) {
         if (opt.cmd === '!') {
             opt.noCompress = true;
@@ -215,8 +183,12 @@ function build(opt, ids) {
     if (!opt.name) {
         opt.name = path.basename(opt.path);
     }
-
-    switch (opt.ext) {
+    switch (opt.name) {
+        case 'Thumbs.db':
+            return;
+    }
+    if (opt.isFile) {
+        switch (opt.ext) {
         case ".js":
             buildJS(opt, ids); break;
         case ".styl":
@@ -225,6 +197,9 @@ function build(opt, ids) {
             buildCSS(opt); break;
         default:
             buildOther(opt);
+        }
+    } else {
+        buildOther(opt);
     }
 }
 
@@ -284,7 +259,7 @@ function buildJS(opt, ids) {
 
 function buildStyl(opt) {
     var isConcat = !!opt.concat,
-        name = opt.name || (path.basename(opt.path, '.styl') + '.css'),
+        name = path.basename(opt.path, '.styl') + '.css',
         content = fs.readFileSync(opt.path).toString(),
         outfile = path.join(opt.outdir, name);
 
@@ -327,21 +302,25 @@ function buildCSS(opt) {
 }
 
 function buildOther(opt) {
-    var stats = statSync(opt.path);
-    if (!stats) {
-        console.log( 'skipped: path "'+ opt.path + '" is not exist!' );
-        return;
-    }
-    if (stats.isFile()) {
-        var outfile = path.join(opt.outdir, opt.outname || path.basename(opt.path));
-        streamCopyFile(opt.path,  outfile, function() {
-            console.log( 'copy: '+ outfile );
+    if (opt.isFile) {
+        var outfile = path.join(opt.outdir, opt.outname || path.basename(opt.path)),
+            readStream = fs.createReadStream(opt.path),
+            writeStream = fs.createWriteStream(outfile);
+
+        writeStream.on('finish', function(err) {
+            if (err) {
+                console.log(err);
+                return;
+            }
+            fs.utimesSync(outfile, opt.stats.atime, opt.stats.mtime);
         });
+        readStream.pipe( writeStream );
+        console.log( 'copy: '+ outfile );
     }
-    else if (stats.isDirectory()) {
-        var outdir = opt.outdir + opt.path.split(path.sep).pop();
+    else {
+        var outdir = opt.outdir + path.sep + opt.path.split(path.sep).pop();
         mkpathSync(outdir);
-        console.log( 'mkdir: ' + outdir );
+        console.log( '\nmkdir: ' + outdir );
         fetch(opt.path + (opt.cmd ? '#' + opt.cmd : ''), outdir);
     }
 }
