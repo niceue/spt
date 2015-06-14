@@ -12,14 +12,8 @@
         "stylus": ">= 0.41.3",
 		"cssmin": ">= 0.4.1"
     },
-    "base": "../js/",
+    "base": "./test/",
     "build": {
-        "dist/*.js": "src/*.js",
-        "dist/co/*.js": "src/co/*.js",
-        "dist/p/*.js": "src/p/*.js",
-        "dist/mloan/*.js": "src/mloan/*.js",
-        "../css/base.min.css": "../css/base.css",
-
-        "../css/pages.min.css": "../css/pages.css"
+        "dist/": "src/"
     }
 }
