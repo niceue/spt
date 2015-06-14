@@ -1,0 +1,17 @@
+/*! reset */
+
+html {font-size: 14px; line-height: 1.5;}
+body,div,dl,dt,dd,ul,ol,li,h1,h2,h3,h4,h5,h6,pre,code,form,fieldset,legend,textarea,p,blockquote,th,td,hr,button,article,aside,details,figcaption,figure,footer,header,hgroup,menu,nav,section {
+    margin:0; padding:0;
+}
+article,aside,details,figcaption,figure,footer,header,hgroup,menu,nav,section {display:block;}
+audio,canvas,video {display: inline-block; *display: inline; *zoom: 1;}
+table {border-collapse:collapse; border-spacing:0;}
+caption,th {text-align:left;}
+fieldset,img,iframe {border:0;}
+img {-ms-interpolation-mode: bicubic; max-width:100%; height: auto; vertical-align: middle;}
+a {background: transparent; text-decoration:none;}
+small {font-size: 85%;}
+strong {font-weight: bold;}
+i,cite {font-style: normal;}
+ol,ul {list-style:none;}

@@ -1,0 +1,84 @@
+/*! grid */
+
+/****************************************************
+    12 columns Fluid CSS Grid System
+
+    1200px - perfectly fits 1280 screens
+        12 spanumns
+        margin 2% / 36px (full-width)
+        span1 6.5% / 66px (full-width)
+
+    1000px - perfectly fits 1024 screens
+        12 spanumns
+        margin 2% / 30px (full-width)
+        span1 6.5% / 55px (full-width)
+*****************************************************/
+
+
+.row {
+    clearfix();
+}
+.span-1, .span-2, .span-3, .span-4, .span-5, .span-6, .span-7, .span-8, .span-9, .span-10, .span-11, .span-12 {
+    float: left; *display: inline;
+    min-height: 1px;
+    margin-left: 2%;
+}
+
+.span-1 { width: 6.5%; }
+.span-2 { width: 15%; }
+.span-3 { width: 23.5%; }
+.span-4 { width: 32%; }
+.span-5 { width: 40.5%; }
+.span-6 { width: 49%; }
+.span-7 { width: 57.5%; }
+.span-8 { width: 66%; }
+.span-9 { width: 74.5%; }
+.span-10 { width: 83%; }
+.span-11 { width: 91.5%; }
+.span-12 { width: 100%; }
+
+
+[class*="span-"]:first-child {
+    margin-left: 0;
+}
+[class*="span-"].pull-right {
+    float: right;
+}
+[class*="span-"].hidden {
+    display: none;
+}
+
+
+.offset-1[class*="span-"] { margin-left: 8.5%; }
+.offset-2[class*="span-"] { margin-left: 17%; }
+.offset-3[class*="span-"] { margin-left: 25.5%; }
+.offset-4[class*="span-"] { margin-left: 34%; }
+.offset-5[class*="span-"] { margin-left: 42.5%; }
+.offset-6[class*="span-"] { margin-left: 51%; }
+.offset-7[class*="span-"] { margin-left: 59.5%; }
+.offset-8[class*="span-"] { margin-left: 68%; }
+.offset-9[class*="span-"] { margin-left: 76.5%; }
+.offset-10[class*="span-"] { margin-left: 85%; }
+.offset-11[class*="span-"] { margin-left: 93.5%; }
+
+/*
+$columns        = 12;
+$columnWidth    = 60px;
+$gutterWidth    = 20px;
+$rowWidth       = ($columns * $columnWidth) + ($gutterWidth * ($columns - 1));
+
+
+/*
+ * Small devices
+ */
+@media all and (max-width: 768px) {
+    .row {margin-bottom: 15px;}
+
+    .span-1, .span-2, .span-3, .span-4, .span-5, .span-6, .span-7, .span-8, .span-9, .span-10, .span-11 {
+        float: none;
+        width: 100%;
+        margin-left:0;
+        margin-bottom: 5px;
+    }
+    [class*="offset-"]:first-child {margin-left:0}
+}
