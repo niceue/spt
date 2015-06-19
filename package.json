@@ -1,7 +1,7 @@
 {
     "name": "Build",
     "description": "Front-end resources build tools",
-    "version": "0.1.1",
+    "version": "0.1.2",
     "author": "Jony Zhang <zj86@live.cn>",
     "engine": [
         "node >=0.10.0"
