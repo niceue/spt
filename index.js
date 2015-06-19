@@ -12,16 +12,25 @@ var fs = require('fs'),
     path = require('path'),
     U2 = require("uglify-js"),
     stylus = require('stylus'),
-    cssmin = require('cssmin'),
-    WORKING_DIR = path.dirname(process.argv[1]),
-    EXT = process.argv[2];
+    cssmin = require('cssmin');
 
-process.chdir(WORKING_DIR);
-    
 var cfg = JSON.parse(fs.readFileSync('package.json')),
-    ROOT = cfg.base,
+    WORKING_DIR = process.cwd(),
+    EXT = process.argv[2]
+    ROOT = (function(){
+        var dir = cfg.base || './';
+        if (dir.substr(-1) !== '/') dir += '/';
+        return dir;
+    })(),
     REQUIRE_RE = /"(?:\\"|[^"])*"|'(?:\\'|[^'])*'|\/\*[\S\s]*?\*\/|\/(?:\\\/|[^\/\r\n])+\/(?=[^\/])|\/\/.*|\.\s*require|(?:^|[^$])\brequire\s*\(\s*(["'])(.+?)\1\s*\)/g,
     SLASH_RE = /\\\\/g;
+
+console.log(WORKING_DIR);
+console.log('base: ' + ROOT);
+console.log("\nbuilding...");
+task(cfg.build);
+console.log("\ncompleted!\n");
+
 
 function mkpathSync(dirpath, mode) {
     dirpath = path.resolve(dirpath);
@@ -52,14 +61,11 @@ function statSync(path) {
     }
 }
 
-console.log("building...");
-task(cfg.build);
-console.log("\ncompleted!\n");
-
 
 function task(obj) {
     var outdir, outname, val, ids = {}, stats,
-        _toString = Object.prototype.toString;
+        _toString = Object.prototype.toString,
+        rFile = /\.[a-z]{3,4}$/i;
 
     for (var k in obj) {
         val = obj[k];
@@ -67,9 +73,13 @@ function task(obj) {
         //if (!checkExt(k)) continue;
         console.log('\n[task] "' + k + '": "' + val + '"');
 
-        if (k.substr(-1) === '/') {
+        if (!rFile.test(k)) {
+            if (k.substr(-1) === '/') {
+                k = k.substr(0, k.length-1);
+            }
             outdir = path.join(ROOT, k);
-        } else {
+        }
+        else {
             outdir = path.join(ROOT, path.dirname(k));
             if (!~k.lastIndexOf('*.')) {
                 outname = path.basename(k);
@@ -132,7 +142,7 @@ function fetch(srcpath, outdir, outname, concat, ids) {
     }
     else if (stats.isDirectory()) {
         fs.readdirSync( src ).forEach(function(f) {
-            var p = path.join(src, '/', f);
+            var p = path.join(src, f);
             var stats = statSync(p);
             if (!stats) return;
             var isFile = stats.isFile();
