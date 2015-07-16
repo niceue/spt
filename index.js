@@ -76,7 +76,7 @@ function statSync(path) {
 function task(obj) {
     var outdir, outname, val, ids = {}, stats,
         _toString = Object.prototype.toString,
-        rFile = /\.[a-z]{3,4}$/i;
+        rFile = /\.[a-z]{2,4}$/i;
 
     for (var k in obj) {
         val = obj[k];
