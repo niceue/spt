@@ -31,6 +31,17 @@ console.log("\nbuilding...");
 task(cfg.build);
 console.log("\ncompleted!\n");
 
+function unique(arr){
+    var ret = [];
+    var obj = {};
+    for(var i = 0, len = arr.length; i < len; i++){
+        if (!obj[arr[i]]) {
+            ret.push(arr[i]);
+            obj[arr[i]] = 1;
+        }
+    }
+    return ret;
+}
 
 function mkpathSync(dirpath, mode) {
     dirpath = path.resolve(dirpath);
@@ -65,7 +76,7 @@ function statSync(path) {
 function task(obj) {
     var outdir, outname, val, ids = {}, stats,
         _toString = Object.prototype.toString,
-        rFile = /\.[a-z]{2,4}$/i;
+        rFile = /\.[a-z]{3,4}$/i;
 
     for (var k in obj) {
         val = obj[k];
@@ -214,14 +225,15 @@ function build(opt, ids) {
 }
 
 function parseDependencies(code) {
-    var ret = [];
+    var arr = [];
     code.replace(SLASH_RE, "")
         .replace(REQUIRE_RE, function(m, m1, m2) {
             if (m2) {
-                ret.push('"' + m2 + '"');
+                arr.push('"' + m2 + '"');
             }
         });
-    return '[' + ( ret.length ? ret.join(',') : '' ) + '],';
+    arr = unique(arr);
+    return '[' + ( arr.length ? arr.join(',') : '' ) + '],';
 }
 
 function buildJS(opt, ids) {
