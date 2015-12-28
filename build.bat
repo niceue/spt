@@ -1,5 +1,5 @@
 @echo off
 
-node index
+node ./
 
 pause
