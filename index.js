@@ -5,14 +5,14 @@
  * @resources:
     https://github.com/mishoo/UglifyJS2/
     http://learnboost.github.io/stylus/
-    http://github.com/jbleuzen/node-cssmin
+    https://github.com/jakubpawlowicz/clean-css
  */
 
 var fs = require('fs'),
     path = require('path'),
     U2 = require("uglify-js"),
     stylus = require('stylus'),
-    cssmin = require('cssmin');
+    CleanCSS = require('clean-css');
 
 var cfg = JSON.parse(fs.readFileSync('package.json')),
     WORKING_DIR = process.cwd(),
@@ -161,7 +161,7 @@ function fetch(srcpath, outdir, outname, concat, ids) {
             if (ext && isFile && ext !== path.extname(f)) {
                 return;
             }
-            
+
             if (path.basename(f).indexOf('.bak') !== -1 || path.basename(f).indexOf('- \u526f\u672c') !== -1) {
                 console.log('skipped: ' + p);
             }
@@ -245,7 +245,7 @@ function buildJS(opt, ids) {
         isConcat = !!opt.concat,
         name = opt.name || path.basename(opt.path),
         outfile = path.join(opt.outdir, name).replace('.debug.', '.');
-        
+
     if (opt.noCompress) {
         code = content;
     } else {
@@ -263,7 +263,7 @@ function buildJS(opt, ids) {
             // except: '$,require,exports'
         });
 
-        code = ast.print_to_string();    
+        code = ast.print_to_string();
 
         var index = code.indexOf("define(");
         if (index !== -1 && code.substring(index+7, index+8) !== '"') {
@@ -311,13 +311,15 @@ function buildCSS(opt) {
     if (opt.noCompress) {
         code = content;
     } else {
-        code = cssmin(content).replace(/url\(([^\)]*)/gmi, function(m, m1){
+        code = new CleanCSS({
+            keepSpecialComments: 0
+        }).minify(content).styles.replace(/url\(([^\)]*)/gmi, function(m, m1){
             m1 = m1.replace(/'|"|\s/g, '');
             m1 = path.relative(opt.outdir, path.join( path.dirname(opt.path) , m1) ).replace(/\\/g, '/');
             return "url("+ m1;
         });
     }
-    
+
     code += '\n';
     fs[isConcat ? 'appendFileSync' : 'writeFileSync'](outfile, code);
     console.log( isConcat ? '    '+ opt.path : ( opt.noCompress ? 'copy: ' : 'min: ') + outfile );

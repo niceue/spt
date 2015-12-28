@@ -3,6 +3,11 @@
     "description": "Front-end resources build tools",
     "version": "0.1.2",
     "author": "Jony Zhang <zj86@live.cn>",
+    "license": "MIT",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/niceue/spt.git"
+    },
     "engine": [
         "node >=0.10.0"
     ],
@@ -10,7 +15,7 @@
     "devDependencies": {
         "uglify-js": ">= 2.4.8",
         "stylus": ">= 0.41.3",
-		"cssmin": ">= 0.4.1"
+		"clean-css": ">= 3.4.8"
     },
     "base": "./test/",
     "build": {
