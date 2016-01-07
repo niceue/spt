@@ -123,6 +123,8 @@ function task(obj) {
             console.log('end concat <<<');
         }
     }
+
+    updateManifest(WORKING_DIR);
 }
 
 function fetch(srcpath, outdir, outname, concat, ids) {
@@ -347,4 +349,20 @@ function buildOther(opt) {
         console.log( '\nmkdir: ' + outdir );
         fetch(opt.path + (opt.cmd ? '#' + opt.cmd : ''), outdir);
     }
+}
+
+//change appcache.manifest
+function updateManifest(dir) {
+    var filename = 'appcache.manifest',
+        filepath = path.resolve(dir, filename),
+        stat = statSync( filepath ),
+        content, timeStr;
+
+    if (!stat || !stat.isFile()) return;
+
+    timeStr = new Date().toISOString().replace('T', ' ');
+    content = fs.readFileSync(filepath, 'utf-8').toString().replace(/(#Time:\s*)[^\n]*/gmi, '$1'+timeStr);
+    console.log('\nUpdate '+ filename + ' @' + timeStr);
+
+    fs.writeFileSync(filepath, content);
 }
